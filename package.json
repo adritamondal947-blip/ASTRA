@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@types/three": "^0.187.0",
     "lucide-react": "^1.72.0",
     "react": "^19.3.1",
