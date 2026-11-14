@@ -109,6 +109,14 @@ export function VitalSigns({ currentEnv = 'Spacecraft' }: VitalSignsProps) {
         </button>
       </div>
 
+      {latestConfiguredAlerts.length > 0 && (
+        <div role="alert" className="rounded-[16px] border p-4 flex flex-col gap-2" style={{ backgroundColor: `${theme.warning}12`, borderColor: `${theme.warning}70`, color: theme.textPrimary }}>
+          <span className="text-[13px] font-semibold" style={{ color: theme.warning }}>Configured measurement limit crossed · review needed</span>
+          {latestConfiguredAlerts.map((alert) => <p key={alert} className="text-[13px]">{alert}</p>)}
+          <p className="text-[11px]" style={{ color: theme.textSecondary }}>This is based on the limit configured for this astronaut and mission. It is not a diagnosis or treatment recommendation.</p>
+        </div>
+      )}
+
       {/* Priority Banner */}
       <div className={`w-full ${theme.bannerSurface} rounded-[16px] px-4 py-3 flex flex-col gap-0.5`}>
         <span className="text-[11px] font-semibold tracking-wider uppercase" style={{ color: theme.accent }}>
@@ -299,14 +307,6 @@ export function VitalSigns({ currentEnv = 'Spacecraft' }: VitalSignsProps) {
       </div>
 
       <MeasurementHistoryPanel environment={currentEnv} />
-      {latestConfiguredAlerts.length > 0 && (
-        <div role="alert" className="rounded-[16px] border p-4 flex flex-col gap-2" style={{ backgroundColor: `${theme.warning}12`, borderColor: `${theme.warning}70`, color: theme.textPrimary }}>
-          <span className="text-[13px] font-semibold" style={{ color: theme.warning }}>Configured measurement limit crossed</span>
-          {latestConfiguredAlerts.map((alert) => <p key={alert} className="text-[13px]">{alert}</p>)}
-          <p className="text-[11px]" style={{ color: theme.textSecondary }}>This reports configured limits only; it is not a diagnosis. Follow your medical team’s response plan.</p>
-        </div>
-      )}
-
       {/* Interval Settings Modal Dialog */}
       {isConfiguringInterval && (
         <div

@@ -28,6 +28,13 @@ export function AstronautStatusBar({
   const theme = getTheme(currentEnv);
   const envData = getEnvironmentData(currentEnv);
   const locationLabel = environmentName || envData.locationLabel;
+  const currentUtcDate = new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date());
 
   return (
     <section className={`w-full ${theme.cardSurface} rounded-[20px] px-5 py-3.5 flex flex-wrap items-center justify-between gap-4`}>
@@ -69,9 +76,9 @@ export function AstronautStatusBar({
         <img src={imgClockIcon} alt="UTC Time" className="w-5 h-5 shrink-0 opacity-80" />
         <div className="flex flex-col text-[12.5px] leading-[1.35]">
           <span className="text-[14px] font-semibold tabular-nums font-mono" style={{ color: theme.textPrimary }}>
-            {timeUtc || '14:37:26 UTC'}
+            {timeUtc}
           </span>
-          <span className="text-[11.5px]" style={{ color: theme.textSecondary }}>Mon, Apr 28, 2025</span>
+          <span className="text-[11.5px]" style={{ color: theme.textSecondary }}>{currentUtcDate}</span>
         </div>
       </div>
 

@@ -62,7 +62,7 @@ export function ConfigureMeasurementThresholdsModal({ environment, profileId, th
         <div className="border-b pb-4" style={{ borderColor: theme.cardBorderHex }}>
           <span className={`text-[11px] font-mono px-2 py-1 rounded ${theme.tagBadge}`}>ALERT RULES · {environment.toUpperCase()}</span>
           <h2 id="thresholds-title" className="text-[21px] font-semibold mt-2" style={{ color: theme.textPrimary }}>Configure measurement thresholds</h2>
-          <p className="text-[12px] mt-1" style={{ color: theme.textSecondary }}>Enter limits supplied for this astronaut and mission by the responsible medical team. ASTRA does not provide default clinical limits.</p>
+          <p className="text-[12px] mt-1" style={{ color: theme.textSecondary }}>Enter limits approved for this astronaut and mission by the responsible medical team. NASA does not publish one universal set of alert cutoffs for all astronaut vital signs.</p>
           <p className="text-[11px] mt-1" style={{ color: theme.textMuted }}>Profile {profileId} · Unconfigured metrics do not generate threshold alerts.</p>
         </div>
 
@@ -82,7 +82,8 @@ export function ConfigureMeasurementThresholdsModal({ environment, profileId, th
           </div>
 
           <div className="rounded-xl border p-3 text-[12px] leading-relaxed" style={{ borderColor: `${theme.warning}55`, backgroundColor: `${theme.warning}10`, color: theme.textSecondary }}>
-            These are user-configured alert rules, not ASTRA medical advice. Configure only limits approved for this profile and mission. Alerts report a configured limit crossing; they do not diagnose a condition.
+            NASA OCHMO-STD-100.1A defines hypertension for astronaut medical selection and recertification as sustained blood pressure at or above 140/90 mmHg. That is not a one-reading, in-flight alert rule. ASTRA does not use it as a default. <a className="underline" href="https://www.nasa.gov/wp-content/uploads/2023/04/ochmo-std-100.1a.pdf" target="_blank" rel="noreferrer">Read the NASA standard</a>.
+            <br /><br />Set only limits approved for this profile and mission. ASTRA flags a configured limit crossing for review; it does not diagnose a condition or recommend treatment.
           </div>
           {error && <p role="alert" className="text-sm" style={{ color: theme.warning }}>{error}</p>}
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">

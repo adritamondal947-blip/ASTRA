@@ -129,7 +129,7 @@ export default function App() {
   const [selectedEnv, setSelectedEnv] = useState<EnvironmentType>(getInitialEnv);
   const [selectedPhase, setSelectedPhase] = useState<string | null>(getInitialPhase);
   const [isConfirmed, setIsConfirmed] = useState<boolean>(true);
-  const [timeUtc, setTimeUtc] = useState<string>('14:37:26 UTC');
+  const [timeUtc, setTimeUtc] = useState<string>(() => `${new Date().toISOString().slice(11, 19)} UTC`);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState<boolean>(false);
   const [showVoiceHelp, setShowVoiceHelp] = useState<boolean>(false);
   const [isCalibrated, setIsCalibrated] = useState<boolean>(getInitialCalibrated);
