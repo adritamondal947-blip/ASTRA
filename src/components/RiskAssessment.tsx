@@ -1,19 +1,45 @@
+import { useEffect, useState } from 'react';
 import type { EnvironmentType } from './EnvironmentCards';
 import { getTheme } from '../utils/themeTokens';
 import { getEnvironmentData } from '../data/environmentData';
 import { useMeasurements } from '../data/measurementStore';
 import { formatProfileMissionProgress } from '../data/measurementConfig';
 import imgContinueArrow from '../assets/figma/imgContinueArrow.svg';
+import { getHazardConcerns, saveHazardConcerns, SPACEFLIGHT_HAZARDS } from '../data/hazardConcerns';
 
 interface RiskAssessmentProps {
   currentEnv?: EnvironmentType;
   isCalibrated?: boolean;
+  onNavigate?: (screen: string) => void;
 }
 
-export function RiskAssessment({ currentEnv = 'Spacecraft', isCalibrated = false }: RiskAssessmentProps) {
+export function RiskAssessment({ currentEnv = 'Spacecraft', isCalibrated = false, onNavigate }: RiskAssessmentProps) {
   const { activeProfile } = useMeasurements();
   const theme = getTheme(currentEnv);
   const envData = getEnvironmentData(currentEnv);
+  const [selectedProblemIds, setSelectedProblemIds] = useState<string[]>(() => getHazardConcerns(activeProfile?.id ?? '', currentEnv));
+
+  useEffect(() => {
+    setSelectedProblemIds(getHazardConcerns(activeProfile?.id ?? '', currentEnv));
+  }, [activeProfile?.id, currentEnv]);
+
+  const toggleProblem = (problemId: string) => {
+    const next = selectedProblemIds.includes(problemId)
+      ? selectedProblemIds.filter((id) => id !== problemId)
+      : [...selectedProblemIds, problemId];
+    setSelectedProblemIds(next);
+    saveHazardConcerns(activeProfile?.id ?? '', currentEnv, next);
+  };
+
+  const hazardContext = (hazardId: string) => {
+    switch (hazardId) {
+      case 'radiation': return `${envData.environmental.radiationDailyMsv} mSv/day`;
+      case 'isolation': return `${envData.sleepMental.stressScorePct}% stress · ${envData.sleepMental.sleepDurationHours}h ${envData.sleepMental.sleepDurationMinutes}m sleep`;
+      case 'distance': return envData.commLinkDetails;
+      case 'gravity': return envData.environmental.gravityLabel;
+      default: return `${envData.environmental.cabinPressureKpa} kPa · ${envData.environmental.ambientTempC} °C`;
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full animate-fadeIn">
@@ -46,9 +72,56 @@ export function RiskAssessment({ currentEnv = 'Spacecraft', isCalibrated = false
           Risk Assessment & Environmental Hazard Telemetry
         </h1>
         <p className="text-[14px]" style={{ color: theme.textSecondary }}>
-          Predictive aerospace physiological risk scoring and mitigation profiles for {envData.locationLabel}.
+          Select any problems you’re experiencing. ASTRA will use them to find related guidance for this mission.
         </p>
       </div>
+
+      {/* Interactive mission hazard checklist */}
+      <section className="flex flex-col gap-3" aria-labelledby="spaceflight-hazards-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="spaceflight-hazards-heading" className="text-[18px] font-semibold" style={{ color: theme.textPrimary }}>What are you experiencing?</h2>
+            <p className="text-[12px] mt-1" style={{ color: theme.textSecondary }}>Choose all that apply. Selections are saved for this profile and mission environment.</p>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-1 rounded border" style={{ color: theme.warning, borderColor: `${theme.warning}55`, backgroundColor: `${theme.warning}12` }}>DEMO SCENARIO CONTEXT</span>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          {SPACEFLIGHT_HAZARDS.map((hazard, index) => {
+            const checkedCount = hazard.problems.filter((problem) => selectedProblemIds.includes(problem.id)).length;
+            return (
+              <article key={hazard.id} className={`${theme.cardSurface} rounded-[18px] p-4 sm:p-5 border shadow-lg`} style={{ borderColor: checkedCount ? `${theme.accent}85` : theme.cardBorderHex }}>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold" style={{ color: theme.accent, backgroundColor: `${theme.accent}18` }}>0{index + 1}</span>
+                    <div>
+                      <h3 className="text-[15px] font-semibold" style={{ color: theme.textPrimary }}>{hazard.name}</h3>
+                      <p className="text-[10px] uppercase tracking-wide" style={{ color: theme.textMuted }}>{hazard.contextLabel}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-right" style={{ color: theme.textSecondary }}>{hazardContext(hazard.id)}</span>
+                </div>
+                <div className="border-t pt-3 flex flex-col gap-2" style={{ borderColor: `${theme.accent}25` }}>
+                  {hazard.problems.map((problem) => (
+                    <label key={problem.id} className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 cursor-pointer hover:bg-white/[0.04] transition-colors">
+                      <input type="checkbox" checked={selectedProblemIds.includes(problem.id)} onChange={() => toggleProblem(problem.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-cyan-400" />
+                      <span className="text-[12px] leading-relaxed" style={{ color: theme.textPrimary }}>{problem.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center mt-3 pt-2 border-t" style={{ borderColor: `${theme.accent}20` }}>
+                  <a href={hazard.source} target="_blank" rel="noreferrer" className="text-[10px] underline underline-offset-2" style={{ color: theme.textMuted }}>NASA background</a>
+                  <span className="text-[10px] font-medium" style={{ color: checkedCount ? theme.accent : theme.textMuted }}>{checkedCount ? `${checkedCount} selected` : 'No problems selected'}</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {selectedProblemIds.length > 0 && (
+          <button type="button" onClick={() => onNavigate?.('Medical Guidance')} className={`self-start h-11 px-5 rounded-xl ${theme.buttonPrimary} text-sm font-semibold shadow-lg hover:brightness-110 transition-all`}>
+            View guidance for {selectedProblemIds.length} selected {selectedProblemIds.length === 1 ? 'problem' : 'problems'} →
+          </button>
+        )}
+      </section>
 
       {/* Priority Banner */}
       <div
