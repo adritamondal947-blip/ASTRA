@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { EnvironmentType } from './EnvironmentCards';
 import { getTheme } from '../utils/themeTokens';
 import { getEnvironmentData } from '../data/environmentData';
@@ -5,6 +6,7 @@ import { formatProfileMissionProgress } from '../data/measurementConfig';
 import { useMeasurements } from '../data/measurementStore';
 import { formatMeasurementDate } from '../data/measurementConfig';
 import { DEMO_GUIDANCE_LABEL, generateSymptomGuidance } from '../data/symptomGuidance';
+import { getHazardConcerns, PROBLEM_GUIDANCE, SPACEFLIGHT_HAZARDS } from '../data/hazardConcerns';
 
 interface MedicalGuidanceProps {
   currentEnv?: EnvironmentType;
@@ -17,6 +19,16 @@ export function MedicalGuidance({ currentEnv = 'Spacecraft', isCalibrated = fals
   const { symptomRecords, activeProfile } = useMeasurements();
   const profileId = activeProfile?.id ?? ''; 
   const healthRecords = symptomRecords.filter((record) => record.profileId === profileId && record.environment === currentEnv);
+  const [selectedProblemIds, setSelectedProblemIds] = useState<string[]>(() => getHazardConcerns(profileId, currentEnv));
+
+  useEffect(() => {
+    setSelectedProblemIds(getHazardConcerns(profileId, currentEnv));
+  }, [profileId, currentEnv]);
+
+  const selectedProblems = SPACEFLIGHT_HAZARDS.flatMap((hazard) => hazard.problems
+    .filter((problem) => selectedProblemIds.includes(problem.id))
+    .map((problem) => ({ ...problem, hazardName: hazard.name, guidance: PROBLEM_GUIDANCE[problem.id] })));
+  const hasPersonalGuidance = healthRecords.length > 0 || selectedProblems.length > 0;
 
   return (
     <div className="flex flex-col gap-4 w-full animate-fadeIn">
@@ -49,9 +61,33 @@ export function MedicalGuidance({ currentEnv = 'Spacecraft', isCalibrated = fals
           Aerospace Medical Guidance & Clinical Countermeasures
         </h1>
         <p className="text-[14px]" style={{ color: theme.textSecondary }}>
-          Evidence-based countermeasure protocols, exercise prescriptions, and clinical guidelines for {envData.locationLabel}.
+          Review information related to your selected concerns and mission context for {envData.locationLabel}.
         </p>
       </div>
+
+      {selectedProblems.length > 0 && (
+        <section className="flex flex-col gap-3" aria-label="Guidance for selected problems">
+          <div>
+            <h2 className="text-[19px] font-semibold" style={{ color: theme.textPrimary }}>Guidance for the problems you selected</h2>
+            <p className="text-[12px]" style={{ color: theme.textSecondary }}>Matched from your hazard checklist for {envData.environmentDisplayName}.</p>
+          </div>
+          {selectedProblems.map((problem) => (
+            <article key={problem.id} className={`${theme.cardSurface} rounded-[18px] p-5 border flex flex-col gap-3`} style={{ borderColor: theme.cardBorderHex }}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wide" style={{ color: theme.accent }}>{problem.hazardName}</span>
+                  <h3 className="text-[16px] font-semibold" style={{ color: theme.textPrimary }}>{problem.guidance.title}</h3>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-1 rounded border" style={{ color: theme.warning, borderColor: theme.warning }}>{DEMO_GUIDANCE_LABEL}</span>
+              </div>
+              <ul className="list-disc pl-5 space-y-1 text-[13px]" style={{ color: theme.textPrimary }}>
+                {problem.guidance.actions.map((action) => <li key={action}>{action}</li>)}
+              </ul>
+              <p className="text-[11px]" style={{ color: theme.textMuted }}>This is general demonstration guidance, not a diagnosis or substitute for your mission medical team.</p>
+            </article>
+          ))}
+        </section>
+      )}
 
       {healthRecords.length > 0 && (
         <section className="flex flex-col gap-3" aria-label="Guidance for saved symptoms">
@@ -80,7 +116,7 @@ export function MedicalGuidance({ currentEnv = 'Spacecraft', isCalibrated = fals
         </section>
       )}
 
-      {healthRecords.length === 0 && <div className="flex flex-col gap-4">
+      {!hasPersonalGuidance && <div className="flex flex-col gap-4">
       {/* Recommended Protocols Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
         {envData.protocols.map((protocol, idx) => {

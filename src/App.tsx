@@ -521,6 +521,7 @@ export default function App() {
               <RiskAssessment
                 currentEnv={selectedEnv}
                 isCalibrated={isCalibrated}
+                onNavigate={handleNavigate}
               />
             )}
 
