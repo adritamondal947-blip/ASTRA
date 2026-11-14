@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { AstronautProfile, NewAstronautProfile } from '../data/measurementStore';
-import { authenticateWithCredentials } from '../auth/authService';
+import { authenticateWithBackendOrFallback } from '../auth/authService';
 import { AstraLogo } from './AstraLogo';
 
 interface AstronautProfileEntryProps {
@@ -46,31 +46,35 @@ export function AstronautProfileEntry({
   const [saving, setSaving] = useState(false);
 
   // Handle Credentials Sign In
-  const handleCredentialLogin = (e: FormEvent) => {
+  const handleCredentialLogin = async (e: FormEvent) => {
     e.preventDefault();
     setAuthError(null);
     setIsAuthenticating(true);
 
-    // Look for matching profile if any
-    const matched = profiles.find(
-      (p) =>
-        p.id.toLowerCase() === identifier.trim().toLowerCase() ||
-        p.fullName.toLowerCase().includes(identifier.trim().toLowerCase())
-    );
+    try {
+      // Look for matching profile if any
+      const matched = profiles.find(
+        (p) =>
+          p.id.toLowerCase() === identifier.trim().toLowerCase() ||
+          p.fullName.toLowerCase().includes(identifier.trim().toLowerCase())
+      );
 
-    const result = authenticateWithCredentials(identifier, password, matched);
+      const result = await authenticateWithBackendOrFallback(identifier, password, matched);
 
-    if (!result.success || !result.user) {
-      setAuthError(result.error || 'Invalid astronaut credentials.');
+      if (!result.success || !result.user) {
+        setAuthError(result.error || 'Invalid astronaut credentials.');
+        setIsAuthenticating(false);
+        return;
+      }
+
+      // Successfully authenticated
+      if (onLoginSuccess) {
+        onLoginSuccess(result.user);
+      } else {
+        onSelect(result.user.id);
+      }
+    } finally {
       setIsAuthenticating(false);
-      return;
-    }
-
-    // Successfully authenticated
-    if (onLoginSuccess) {
-      onLoginSuccess(result.user);
-    } else {
-      onSelect(result.user.id);
     }
   };
 

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { EnvironmentType } from '../components/EnvironmentCards';
+import { astraApi } from '../api/astraClient';
 
 export type MeasurementMetricId = 'heartRate' | 'bloodOxygen' | 'bodyTemperature' | 'breathingRate';
 export type MeasurementSource = 'manual-entry' | 'wearable-device' | 'pulse-oximeter' | 'thermometer' | 'imported-record';
@@ -256,12 +257,38 @@ export function MeasurementProvider({ children }: { children: ReactNode }) {
     if (!database) throw new Error(storageError || 'Measurement storage is not ready.');
     await writeRecords(database, newRecords);
     setRecords((current) => [...newRecords, ...current].sort((a, b) => b.measuredAt.localeCompare(a.measuredAt)));
+    
+    // Background sync to backend server when connected
+    for (const r of newRecords) {
+      astraApi.recordVital({
+        profileId: r.profileId,
+        environment: r.environment,
+        metric: r.metric,
+        value: r.value,
+        unit: r.unit,
+        source: r.source,
+        dataStatus: r.status === 'simulated' ? 'simulated' : 'real',
+      }).catch(() => {/* Offline resilience: silently handled */});
+    }
   }, [database, storageError]);
 
   const addSymptomRecord = useCallback(async (record: SymptomRecord) => {
     if (!database) throw new Error(storageError || 'Measurement storage is not ready.');
     await writeSymptomRecord(database, record);
     setSymptomRecords((current) => [record, ...current].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)));
+
+    // Background sync to backend server when connected
+    astraApi.recordSymptom({
+      profileId: record.profileId,
+      environment: record.environment,
+      regionId: record.regionId,
+      regionName: record.regionName,
+      symptomType: record.symptomType,
+      severity: record.severity,
+      intensity: record.intensity,
+      onsetTime: 'Recent self-report',
+      notes: record.notes,
+    }).catch(() => {/* Offline resilience: silently handled */});
   }, [database, storageError]);
 
   const saveThresholds = useCallback(async (values: Omit<MeasurementThreshold, 'id' | 'updatedAt'>[]) => {
@@ -269,6 +296,20 @@ export function MeasurementProvider({ children }: { children: ReactNode }) {
     await writeThresholds(database, values);
     const refreshed = await readStore<MeasurementThreshold>(database, THRESHOLDS_STORE);
     setThresholds(refreshed);
+
+    // Sync to backend
+    if (values.length > 0) {
+      const profileId = values[0].profileId;
+      astraApi.updateThresholds(
+        profileId,
+        values.map((v) => ({
+          environment: v.environment,
+          metric: v.metric,
+          minValue: v.minimum,
+          maxValue: v.maximum,
+        }))
+      ).catch(() => {/* Offline resilience */});
+    }
   }, [database, storageError]);
 
   const value = useMemo(() => ({ profiles, activeProfile, selectProfile, createAstronautProfile, records, thresholds, symptomRecords, isLoading, storageError, addMeasurements, saveThresholds, addSymptomRecord }), [profiles, activeProfile, selectProfile, createAstronautProfile, records, thresholds, symptomRecords, isLoading, storageError, addMeasurements, saveThresholds, addSymptomRecord]);

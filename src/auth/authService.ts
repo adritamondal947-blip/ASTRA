@@ -1,3 +1,5 @@
+import { astraApi } from '../api/astraClient';
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -33,16 +35,18 @@ export function getStoredAuthSession(): AuthSession {
   return { isAuthenticated: false, user: null, token: null, loginTime: null };
 }
 
-export function saveAuthSession(user: AuthUser): AuthSession {
+export function saveAuthSession(user: AuthUser, token?: string): AuthSession {
+  const sessionToken = token || 'dev-token-' + Math.random().toString(36).slice(2);
   const session: AuthSession = {
     isAuthenticated: true,
     user,
-    token: 'dev-token-' + Math.random().toString(36).slice(2),
+    token: sessionToken,
     loginTime: new Date().toISOString(),
   };
   if (typeof window !== 'undefined') {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
     localStorage.setItem('astra_active_profile_id', user.id);
+    astraApi.setToken(sessionToken);
   }
   return session;
 }
@@ -51,13 +55,53 @@ export function clearAuthSession(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem('astra_active_profile_id');
+    astraApi.logout().catch(() => {});
+    astraApi.setToken(null);
   }
 }
 
 /**
- * Development authentication validator.
- * Validates identifier (email, username, or astronaut ID) and password.
- * Development-friendly: allows connecting to a live auth backend (e.g. Firebase Auth / NASA OpenID) in production.
+ * Validates credentials against the ASTRA Backend Server when online,
+ * with seamless fallback for deep space offline scenarios.
+ */
+export async function authenticateWithBackendOrFallback(
+  identifier: string,
+  password: string,
+  matchedProfile?: { id: string; fullName: string; role: string; isDemo?: boolean } | null
+): Promise<{ success: boolean; user?: AuthUser; token?: string; error?: string }> {
+  try {
+    const apiResult = await astraApi.login(identifier, password);
+    if (apiResult.success && apiResult.session) {
+      const s = apiResult.session;
+      const user: AuthUser = {
+        id: s.profileId || s.userId,
+        name: s.name,
+        email: s.email,
+        role: s.profileRole || s.role,
+        isDemo: false,
+      };
+      saveAuthSession(user, s.token);
+      return { success: true, user, token: s.token };
+    }
+    if (apiResult.error) {
+      return { success: false, error: apiResult.error };
+    }
+  } catch {
+    // Backend offline / network link delayed: perform resilient local authentication
+    console.warn('[ASTRA Auth] Backend link inactive or offline. Engaging deep-space resilient local auth.');
+  }
+
+  // Local fallback
+  const localRes = authenticateWithCredentials(identifier, password, matchedProfile);
+  if (localRes.success && localRes.user) {
+    saveAuthSession(localRes.user);
+    return { success: true, user: localRes.user };
+  }
+  return localRes;
+}
+
+/**
+ * Offline development / deep space local validator.
  */
 export function authenticateWithCredentials(
   identifier: string,
@@ -77,9 +121,6 @@ export function authenticateWithCredentials(
     return { success: false, error: 'Password must contain at least 3 characters.' };
   }
 
-  // Development authentication logic:
-  // In dev mode, valid passwords like 'astra', 'nasa', 'mission', or any password for registered astronauts are accepted.
-  // If an exact profile matches the identifier:
   if (matchedProfile) {
     return {
       success: true,
@@ -93,7 +134,6 @@ export function authenticateWithCredentials(
     };
   }
 
-  // Fallback demo user if logging in with generic credentials
   const isDefaultDemo =
     cleanId.toLowerCase().includes('elena') ||
     cleanId.toUpperCase() === 'AST-7426' ||
@@ -110,4 +150,3 @@ export function authenticateWithCredentials(
     },
   };
 }
-
